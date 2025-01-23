@@ -3,70 +3,82 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 
-	"github.com/google/uuid"
-	mercadopago "github.com/mercadopago/sdk-go"
+	"github.com/joho/godotenv"
+	"github.com/mercadopago/sdk-go/pkg/config"
+	"github.com/mercadopago/sdk-go/pkg/payment"
+	"modulo_recarga/usesCases"
 )
 
-func PostPayment(body map[string]interface{}) error {
-	// Configuración del cliente de MercadoPago con el token de acceso
-	client := mercadopago.NewClient(os.Getenv("ACCESS_TOKEN"))
+func PostPayment(body map[string]interface{}) (*payment.Response, error) {
 
-	// Crear el objeto de pago con la estructura esperada
+	// cargar las variables de entorno
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error cargando archivo .env")
+	}
+
+	// configuración del cliente de MercadoPago con el accetkn
+	cfg, err := config.New(os.Getenv("ACCESS_TOKEN"))
+	if err != nil {
+		return nil, fmt.Errorf("error al configurar el cliente: %v", err)
+	}
+
+	client := payment.NewClient(cfg)
+
 	transactionAmount, err := strconv.ParseFloat(fmt.Sprintf("%v", body["transaction_amount"]), 64)
 	if err != nil {
-		return fmt.Errorf("error en el monto de la transacción: %v", err)
+		return nil, fmt.Errorf("error en el monto de la transacción: %v", err)
 	}
 
-	paymentData := map[string]interface{}{
-		"transaction_amount": transactionAmount,
-		"description":        body["description"],
-		"payment_method_id":  "pse",
-		"payer": map[string]interface{}{
-			"entity_type": "individual",
-			"email":       body["email"],
-			"identification": map[string]interface{}{
-				"type":   body["identificationType"],
-				"number": body["identificationNumber"],
+	paymentRequest := payment.Request{
+		CallbackURL:       "https://thisisvank.com/Auth/SingIn",
+		NotificationURL:   "https://thisisvank.com/Auth/SingIn",
+		TransactionAmount: transactionAmount,
+		Description:       fmt.Sprintf("%v", body["description"]),
+		PaymentMethodID:   "pse",
+		Payer: &payment.PayerRequest{
+			EntityType: "individual",
+			Email:      fmt.Sprintf("%v", body["email"]),
+			Identification: &payment.IdentificationRequest{
+				Type:   fmt.Sprintf("%v", body["identificationType"]),
+				Number: fmt.Sprintf("%v", body["identificationNumber"]),
 			},
-			"address": map[string]interface{}{
-				"zip_code":      body["zipCode"],
-				"street_name":   body["streetName"],
-				"street_number": body["streetNumber"],
-				"neighborhood":  body["neighborhood"],
-				"city":          body["city"],
-				"federal_unit":  body["federalUnit"],
+			Address: &payment.AddressRequest{
+				ZipCode:      fmt.Sprintf("%v", body["zipCode"]),
+				StreetName:   fmt.Sprintf("%v", body["streetName"]),
+				StreetNumber: fmt.Sprintf("%v", body["streetNumber"]),
+				Neighborhood: fmt.Sprintf("%v", body["neighborhood"]),
+				City:         fmt.Sprintf("%v", body["city"]),
+				FederalUnit:  fmt.Sprintf("%v", body["federalUnit"]),
 			},
-			"phone": map[string]interface{}{
-				"area_code": body["phoneAreaCode"],
-				"number":    body["phoneNumber"],
+			Phone: &payment.PhoneRequest{
+				AreaCode: fmt.Sprintf("%v", body["phoneAreaCode"]),
+				Number:   fmt.Sprintf("%v", body["phoneNumber"]),
 			},
 		},
-		"additional_info": map[string]interface{}{
-			"ip_address": "127.0.0.1",
+		AdditionalInfo: &payment.AdditionalInfoRequest{
+			IPAddress: "127.0.0.1",
 		},
-		"transaction_details": map[string]interface{}{
-			"financial_institution": body["financialInstitution"],
+		TransactionDetails: &payment.TransactionDetailsRequest{
+			FinancialInstitution: fmt.Sprintf("%v", body["financialInstitution"]),
 		},
-		"external_reference": "MP123456789",
-		"binary_mode":        true,
+		ExternalReference: "MP123456789",
+		BinaryMode:        true,
 	}
 
-	// Crear un identificador único para idempotencia
-	idempotencyKey := uuid.New().String()
-
-	// Realizar la solicitud de creación del pago
-	response, err := client.CreatePayment(context.Background(), paymentData, map[string]interface{}{
-		"idempotencyKey": idempotencyKey,
-	})
-
+	response, err := client.Create(context.Background(), paymentRequest)
 	if err != nil {
-		return fmt.Errorf("error al crear el pago: %v", err)
+		return nil, fmt.Errorf("error al crear el pago: %v", err)
 	}
 
-	// Imprimir el resultado del pago
-	fmt.Println("Resultado del pago:", response)
-	return nil
+	if err := usescases.SavePaymentResponse(response, body); err != nil {
+		return nil, fmt.Errorf("error al guardar la respuesta en la base de datos: %v", err)
+	}
+
+	return response, nil
 }
+

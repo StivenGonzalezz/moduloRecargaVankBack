@@ -1,0 +1,22 @@
+services:
+  postgres:
+
+    image: postgres
+    restart: always
+    ports: 
+      - "9090:5432"
+    environment:
+      - DATABASE_HOST=127.0.0.1
+      - POSTGRES_USER=stiven
+      - POSTGRES_PASSWORD=24681012Ss
+      - POSTGRES_DB=mypostgres
+  
+  # pgadmin:
+  #   image: dpage/pgadmin4
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: "grstiven1004@gmail.com"
+  #     PGADMIN_DEFAULT_PASSWORD: "24681012Ss"
+  #   ports:
+  #     - "80:80"
+  #   depends_on:
+  #     - postgres

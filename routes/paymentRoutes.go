@@ -1,12 +1,13 @@
 package routes
 
 import (
-	"modulo_recarga/controllers" // Reemplaza con el nombre del paquete de tu controlador
+	"modulo_recarga/controllers"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
-func PaymentRoutes(router *mux.Router) {
+func PaymentRoutes(router *mux.Router, db *gorm.DB) {
 	// Crear una instancia de PaymentController
 	paymentController := controllers.PaymentController{}
 

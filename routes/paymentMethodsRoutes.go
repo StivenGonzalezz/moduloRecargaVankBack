@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"modulo_recarga/controllers" // Reemplaza con el nombre del paquete de tu controlador
+	"modulo_recarga/controllers"
 
 	"github.com/gorilla/mux"
 )
