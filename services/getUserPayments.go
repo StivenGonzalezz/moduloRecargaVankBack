@@ -6,13 +6,14 @@ import (
 	"log"
 	usescases "modulo_recarga/usesCases"
 	"os"
+	"sync"
 
 	"github.com/joho/godotenv"
 	"github.com/mercadopago/sdk-go/pkg/config"
 	"github.com/mercadopago/sdk-go/pkg/payment"
 )
 
-func GetUserPayments(id int) {
+func GetUserPayments(id int, wg *sync.WaitGroup) {
 
 	err := godotenv.Load()
 	if err != nil {
@@ -35,5 +36,6 @@ func GetUserPayments(id int) {
 	if response.Status != "pending" {
 		usescases.UpdateTransferStatus(response)
 	}
+	wg.Done()
 
 }

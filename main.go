@@ -7,9 +7,12 @@ import (
 	"modulo_recarga/infrastructure/db/models"
 	"modulo_recarga/routes"
 	"modulo_recarga/services"
+	"sync"
+	"time"
 
 	"net/http"
 
+	"github.com/go-co-op/gocron/v2"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"github.com/rs/cors"
@@ -49,21 +52,50 @@ func main() {
 	}
 	fmt.Println("Migración completada exitosamente")
 
-	// s, err := gocron.NewScheduler()
-	// if err != nil {
-	// 	fmt.Println("error a iniciar cron")
-	// }
-
-	var pendingPayments []models.Payment
-
-	db.DB.Unscoped().Find(&pendingPayments, "status = ?", "pending")
-
-	for _, payment := range pendingPayments {
-		services.GetUserPayments(int(payment.ID))
+	//inicializacion del scheduler para la creacion del job
+	s, err := gocron.NewScheduler()
+	if err != nil {
+		fmt.Println("Error al crear scheduler")
 	}
+	var pendingPayments []models.Payment
+	wg := &sync.WaitGroup{}
+
+	//creacion del job para la actualizacion del estado de los pagos
+	j, err := s.NewJob(
+		gocron.DurationJob(
+			15*time.Second,
+		),
+		//creacion de la tarea
+		gocron.NewTask(
+			func() {
+				db.DB.Unscoped().Find(&pendingPayments, "status = ?", "pending")
+
+				for _, payment := range pendingPayments {
+					wg.Add(1)
+					go services.GetUserPayments(int(payment.ID), wg)
+				}
+				wg.Wait()
+				pendingPayments = nil
+			},
+		),
+	)
+	if err != nil {
+		fmt.Println("Error")
+	}
+	fmt.Println("Jobs creado con el id:", j.ID())
+	s.Start()
 
 	//iniciar el server
 	port := ":3000"
 	log.Printf("Trabajando en el puerto %s", port)
 	log.Fatal(http.ListenAndServe(port, handler))
+
+	select {
+	case <-time.After(30*time.Second):
+	}
+
+	err = s.Shutdown()
+	if err != nil {
+		fmt.Println("error")
+	}
 }

@@ -17,7 +17,7 @@ func UpdateTransferStatus(response *payment.Response) {
 		return
 	}
 
-	if err := db.DB.Unscoped().Model(&payment).Updates(models.Payment{Status:response.Status}).Error; err != nil {
+	if err := db.DB.Unscoped().Model(&payment).Updates(models.Payment{Status: response.Status}).Error; err != nil {
 		fmt.Printf("Error al actualizar el registro con ID %v: %v\n", response.ID, err)
 		return
 	}
