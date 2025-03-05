@@ -7,6 +7,7 @@ import (
 	"modulo_recarga/infrastructure/db/models"
 	"modulo_recarga/routes"
 	"modulo_recarga/services"
+	"os"
 	"sync"
 	"time"
 
@@ -19,10 +20,14 @@ import (
 )
 
 func main() {
-
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Fatal("Error cargando el archivo .env")
+	// Verifica si el archivo .env existe antes de cargarlo
+	if _, err := os.Stat(".env"); err == nil {
+		err := godotenv.Load(".env")
+		if err != nil {
+			log.Fatal("Error cargando el archivo .env")
+		}
+	} else {
+		fmt.Println("No se encontró el archivo .env, usando variables de entorno del sistema.")
 	}
 
 	//crear un nuevo enrutador
@@ -40,7 +45,7 @@ func main() {
 	}).Handler(router)
 
 	//iniciar la conexión a la base de datos
-	_, err = db.InitGorm()
+	_, err := db.InitGorm()
 	if err != nil {
 		log.Fatalf("Error conectando a la base de datos: %v\n", err)
 	}
@@ -91,7 +96,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(port, handler))
 
 	select {
-	case <-time.After(30*time.Second):
+	case <-time.After(30 * time.Second):
 	}
 
 	err = s.Shutdown()

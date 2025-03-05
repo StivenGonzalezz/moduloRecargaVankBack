@@ -9,7 +9,7 @@ COPY . .
 
 # Descarga las dependencias y compila el binario
 RUN go mod tidy
-RUN go build -o app .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o app .
 
 # Crea la imagen final mínima
 FROM alpine:latest
@@ -19,9 +19,10 @@ WORKDIR /root/
 
 # Copia el binario compilado desde la imagen anterior
 COPY --from=builder /app/app .
+RUN chmod +x ./app
 
-# Expone el puerto en el que corre la aplicación
-EXPOSE 8080
+# Expone el puerto correcto
+EXPOSE 3000
 
 # Comando para ejecutar la aplicación
 CMD ["./app"]
